@@ -1,0 +1,24 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: calculations-gateway
+
+grpc:
+  client:
+    python-calculator:
+      address: 'static://localhost:50051'
+      negotiationType: plaintext
+      maxInboundMessageSize: 52428800
+
+logging:
+  level:
+    com.oilgas.calculations: INFO
+    io.grpc: INFO
+
+app:
+  gateway:
+    default-unit-system: metric
+    max-concurrent-calculations: 100
+    calculation-timeout-seconds: 300

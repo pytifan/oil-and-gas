@@ -1,0 +1,42 @@
+version: '3.8'
+
+services:
+  python-calculator:
+    build: ./python-service
+    container_name: calculations-python
+    ports:
+      - "50051:50051"  # gRPC
+      - "8000:8000"    # FastAPI health
+    environment:
+      - PYTHONUNBUFFERED=1
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  calculations-gateway:
+    build: ./calculations-gateway
+    container_name: calculations-gateway
+    ports:
+      - "8080:8080"
+    environment:
+      - GRPC_CLIENT_PYTHON_CALCULATOR_ADDRESS=python-calculator:50051
+    depends_on:
+      - python-calculator
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/api/calculations/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  frontend:
+    build: ./frontend
+    container_name: calculations-ui
+    ports:
+      - "3000:80"
+    environment:
+      - REACT_APP_API_URL=http://localhost:8080/api/calculations
+      - REACT_APP_WS_URL=http://localhost:8080/ws
+    depends_on:
+      - calculations-gateway
