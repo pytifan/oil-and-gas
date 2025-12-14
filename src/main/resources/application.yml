@@ -5,6 +5,11 @@ spring:
   application:
     name: calculations-gateway
 
+  # Problem Details (RFC 9457) support
+  mvc:
+    problemdetails:
+      enabled: true
+
 grpc:
   client:
     python-calculator:
@@ -17,8 +22,75 @@ logging:
     com.oilgas.calculations: INFO
     io.grpc: INFO
 
+# Application configuration
 app:
   gateway:
     default-unit-system: metric
     max-concurrent-calculations: 100
     calculation-timeout-seconds: 300
+  cors:
+    allowed-origins: "*"
+
+# Actuator endpoints configuration
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+      base-path: /actuator
+  endpoint:
+    health:
+      show-details: when-authorized
+      show-components: when-authorized
+      probes:
+        enabled: true
+  info:
+    env:
+      enabled: true
+  health:
+    circuitbreakers:
+      enabled: true
+
+# Application info for actuator
+info:
+  app:
+    name: ${spring.application.name}
+    description: Gateway for Oil & Gas Field Calculations
+    version: 1.0.0
+  api:
+    version: v1
+
+# OpenAPI/Swagger configuration
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+    enabled: true
+  swagger-ui:
+    path: /swagger-ui.html
+    enabled: true
+    operations-sorter: method
+    tags-sorter: alpha
+  show-actuator: true
+
+# Resilience4j Circuit Breaker configuration
+resilience4j:
+  circuitbreaker:
+    instances:
+      pythonCalculator:
+        registerHealthIndicator: true
+        slidingWindowSize: 10
+        minimumNumberOfCalls: 5
+        permittedNumberOfCallsInHalfOpenState: 3
+        automaticTransitionFromOpenToHalfOpenEnabled: true
+        waitDurationInOpenState: 30s
+        failureRateThreshold: 50
+        eventConsumerBufferSize: 10
+  retry:
+    instances:
+      pythonCalculator:
+        maxAttempts: 3
+        waitDuration: 1s
+        enableExponentialBackoff: true
+        exponentialBackoffMultiplier: 2
+        retryExceptions:
+          - io.grpc.StatusRuntimeException
