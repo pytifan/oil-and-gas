@@ -79,8 +79,10 @@ public class CalculationService {
                 "INITIALIZING"
         ));
 
-        // Create SSE sink for this calculation
-        Sinks.Many<CalculationProgress> sink = Sinks.many().multicast().onBackpressureBuffer();
+        // Create SSE sink for this calculation.
+        // Use replay() so that late SSE subscribers (who connect after completion)
+        // still receive all buffered progress events + the terminal signal.
+        Sinks.Many<CalculationProgress> sink = Sinks.many().replay().all();
         progressSinks.put(calculationId, sink);
 
         // Execute calculation in virtual thread
@@ -179,8 +181,9 @@ public class CalculationService {
         }
 
         log.info("Cancelling calculation: {}", calculationId);
+        updateCalculationState(calculationId, CalculationState.CANCELLED, null, "CANCELLED");
 
-        // Send cancellation message before removing from activeCalculations
+        // Send cancellation message
         CalculationProgress.Error cancellation = CalculationProgress.Error.builder()
                 .calculationId(calculationId)
                 .type("error")
@@ -189,7 +192,7 @@ public class CalculationService {
                 .build();
 
         handleProgressUpdate(calculationId, cancellation);
-        completeSink(calculationId);  // removes from both progressSinks and activeCalculations
+        completeSink(calculationId);
     }
 
     /**
@@ -266,7 +269,9 @@ public class CalculationService {
         if (sink != null) {
             sink.tryEmitComplete();
         }
-        activeCalculations.remove(calculationId);
+        // Schedule removal from activeCalculations after a grace period so that
+        // clients that connect shortly after completion can still query status.
+        scheduleCalculationCleanup(calculationId);
     }
 
     private void completeSinkWithError(String calculationId, Throwable error) {
@@ -274,7 +279,19 @@ public class CalculationService {
         if (sink != null) {
             sink.tryEmitError(error);
         }
-        activeCalculations.remove(calculationId);
+        scheduleCalculationCleanup(calculationId);
+    }
+
+    private void scheduleCalculationCleanup(String calculationId) {
+        virtualThreadExecutor.execute(() -> {
+            try {
+                Thread.sleep(Duration.ofMinutes(5).toMillis());
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+            activeCalculations.remove(calculationId);
+            log.debug("Cleaned up completed calculation: {}", calculationId);
+        });
     }
 
     @PreDestroy

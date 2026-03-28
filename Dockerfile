@@ -1,4 +1,6 @@
-FROM eclipse-temurin:25-jdk-alpine AS builder
+# Use Ubuntu-based (jammy) image for building: protoc/grpc-java native binaries
+# require glibc, which Alpine does not provide.
+FROM eclipse-temurin:25-jdk-jammy AS builder
 
 WORKDIR /app
 
