@@ -179,9 +179,8 @@ public class CalculationService {
         }
 
         log.info("Cancelling calculation: {}", calculationId);
-        updateCalculationState(calculationId, CalculationState.CANCELLED, null, "CANCELLED");
 
-        // Send cancellation message
+        // Send cancellation message before removing from activeCalculations
         CalculationProgress.Error cancellation = CalculationProgress.Error.builder()
                 .calculationId(calculationId)
                 .type("error")
@@ -190,7 +189,7 @@ public class CalculationService {
                 .build();
 
         handleProgressUpdate(calculationId, cancellation);
-        completeSink(calculationId);
+        completeSink(calculationId);  // removes from both progressSinks and activeCalculations
     }
 
     /**
@@ -267,6 +266,7 @@ public class CalculationService {
         if (sink != null) {
             sink.tryEmitComplete();
         }
+        activeCalculations.remove(calculationId);
     }
 
     private void completeSinkWithError(String calculationId, Throwable error) {
@@ -274,6 +274,7 @@ public class CalculationService {
         if (sink != null) {
             sink.tryEmitError(error);
         }
+        activeCalculations.remove(calculationId);
     }
 
     @PreDestroy
