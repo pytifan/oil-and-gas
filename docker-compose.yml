@@ -1,6 +1,6 @@
 services:
   python-calculator:
-    build: ./python-service
+    build: ../calculator-python-service
     container_name: calculations-python
     ports:
       - "50051:50051"
@@ -30,7 +30,7 @@ services:
       retries: 3
 
   frontend:
-    build: ./frontend
+    build: ../calculations-frontend
     container_name: calculations-ui
     ports:
       - "3000:80"

@@ -14,23 +14,20 @@ Three-service system for field job liquid volume calculations:
 
 Runs all three services in containers with a single command.
 
-### 1. Clone all repos into the right layout
+### 1. Clone all repos as siblings
 
 ```bash
-git clone https://github.com/pytifan/oil-and-gas.git
-cd oil-and-gas
-git clone https://github.com/pytifan/calculator-python-service.git python-service
-git clone https://github.com/pytifan/calculations-frontend.git frontend
+git clone https://github.com/pytifan/oil-and-gas.git calculations-gateway
+git clone https://github.com/pytifan/calculator-python-service.git
+git clone https://github.com/pytifan/calculations-frontend.git
 ```
 
 Expected directory layout:
 ```
-oil-and-gas/
-  docker-compose.yml
-  Dockerfile              ← gateway
-  src/                    ← gateway source
-  python-service/         ← cloned calculator-python-service
-  frontend/               ← cloned calculations-frontend
+workspace/
+  calculations-gateway/       ← this repo (docker-compose.yml lives here)
+  calculator-python-service/
+  calculations-frontend/
 ```
 
 ### 2. Start everything
