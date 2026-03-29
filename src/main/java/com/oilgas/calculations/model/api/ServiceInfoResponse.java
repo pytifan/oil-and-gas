@@ -26,9 +26,6 @@ public record ServiceInfoResponse(
         @Schema(description = "Available unit systems")
         List<String> unitSystems,
 
-        @Schema(description = "Available solver methods")
-        List<String> solverMethods,
-
         @Schema(description = "API endpoints information")
         EndpointsInfo endpoints,
 
@@ -58,17 +55,14 @@ public record ServiceInfoResponse(
             int maxConcurrentCalculations,
 
             @Schema(description = "Calculation timeout in seconds")
-            int calculationTimeoutSeconds,
-
-            @Schema(description = "Maximum equations per request")
-            int maxEquationsPerRequest
+            int calculationTimeoutSeconds
     ) {}
 
     public static ServiceInfoResponse defaults() {
         return ServiceInfoResponse.builder()
                 .service("Oil & Gas Field Calculations Gateway")
                 .apiVersion("v1")
-                .description("Calculate volumes for field operations including drilling, cementing, and completion")
+                .description("Physics-based well completion fluid displacement simulation")
                 .supportedFluids(List.of(
                         "drilling_mud",
                         "cement",
@@ -77,7 +71,6 @@ public record ServiceInfoResponse(
                         "displacement_fluid"
                 ))
                 .unitSystems(List.of("metric", "imperial"))
-                .solverMethods(List.of("hybr", "lm", "broyden1"))
                 .endpoints(EndpointsInfo.builder()
                         .restApi("/api/v1/calculations")
                         .websocket("/ws")
@@ -87,7 +80,6 @@ public record ServiceInfoResponse(
                 .limits(LimitsInfo.builder()
                         .maxConcurrentCalculations(100)
                         .calculationTimeoutSeconds(300)
-                        .maxEquationsPerRequest(50)
                         .build())
                 .build();
     }

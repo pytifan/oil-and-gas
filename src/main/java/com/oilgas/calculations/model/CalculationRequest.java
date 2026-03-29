@@ -4,73 +4,31 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.*;
 import lombok.Builder;
 
-import java.util.List;
-
 /**
- * Request for field work calculations
+ * Request for well completion calculations.
+ * {@code wellParams} must be provided to run the physics-based simulation.
  */
 @Builder
-@Schema(description = "Request to initiate a new calculation")
+@Schema(description = "Request to initiate a new well completion calculation")
 public record CalculationRequest(
-        @NotEmpty(message = "At least one equation required")
-        @Schema(
-                description = "List of equations to solve",
-                example = "[\"x + y = 10\", \"x - y = 2\"]",
-                requiredMode = Schema.RequiredMode.REQUIRED
-        )
-        List<@NotBlank String> equations,
-
-        @NotEmpty(message = "Initial parameters required")
-        @Schema(
-                description = "Initial parameter values for the solver",
-                example = "[1.0, 1.0]",
-                requiredMode = Schema.RequiredMode.REQUIRED
-        )
-        List<@NotNull Double> initialParameters,
 
         @NotNull(message = "Calculation options required")
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED)
         CalculationOptions options,
 
-        @Schema(description = "Well configuration for field operations (optional)")
-        WellConfiguration wellConfig
+        @Schema(description = "Well metadata (optional)")
+        WellConfiguration wellConfig,
+
+        @Schema(description = "Well completion parameters — required to run the physics-based simulation")
+        WellParameters wellParams
 ) {
 
     /**
-     * Solver configuration options
+     * Calculation options
      */
     @Builder
-    @Schema(description = "Solver configuration options")
+    @Schema(description = "Calculation options")
     public record CalculationOptions(
-            @Schema(
-                    description = "Numerical solver method to use",
-                    example = "hybr",
-                    allowableValues = {"hybr", "lm", "broyden1"},
-                    defaultValue = "hybr"
-            )
-            String solverMethod,
-
-            @Schema(
-                    description = "Maximum number of solver iterations",
-                    example = "1000",
-                    defaultValue = "1000",
-                    minimum = "1",
-                    maximum = "100000"
-            )
-            @Min(value = 1, message = "maxIterations must be at least 1")
-            @Max(value = 100000, message = "maxIterations cannot exceed 100000")
-            Integer maxIterations,
-
-            @Schema(
-                    description = "Convergence tolerance",
-                    example = "1e-8",
-                    defaultValue = "1e-8",
-                    minimum = "1e-15",
-                    maximum = "1"
-            )
-            @Positive(message = "tolerance must be positive")
-            Double tolerance,
-
             @Schema(
                     description = "Unit system for results",
                     example = "metric",
@@ -80,18 +38,63 @@ public record CalculationRequest(
             String unitSystem
     ) {
         public CalculationOptions {
-            if (solverMethod == null || solverMethod.isBlank()) {
-                solverMethod = "hybr";
-            }
-            if (maxIterations == null) {
-                maxIterations = 1000;
-            }
-            if (tolerance == null) {
-                tolerance = 1e-8;
-            }
             if (unitSystem == null || unitSystem.isBlank()) {
                 unitSystem = "metric";
             }
+        }
+    }
+
+    /**
+     * Physics-based well completion parameters
+     */
+    @Builder
+    @Schema(description = "Well geometry and fluid properties for completion simulation")
+    public record WellParameters(
+            @Schema(description = "Tubing length [m]", example = "4000.0", defaultValue = "4000.0")
+            Double tubingLengthM,
+
+            @Schema(description = "Tubing outer diameter [mm]", example = "89.0", defaultValue = "89.0")
+            Double tubingOdMm,
+
+            @Schema(description = "Tubing wall thickness [mm]", example = "6.5", defaultValue = "6.5")
+            Double tubingWallMm,
+
+            @Schema(description = "Casing outer diameter [mm]", example = "168.0", defaultValue = "168.0")
+            Double casingOdMm,
+
+            @Schema(description = "Casing wall thickness [mm]", example = "10.0", defaultValue = "10.0")
+            Double casingWallMm,
+
+            @Schema(description = "Completion fluid density [kg/m³]", example = "1020.0", defaultValue = "1020.0")
+            Double fluidDensityKgM3,
+
+            @Schema(description = "Gravitational acceleration [m/s²]", example = "9.81", defaultValue = "9.81")
+            Double gravityMpS2,
+
+            @Schema(description = "Initial fluid level depth [m]", example = "0.0", defaultValue = "0.0")
+            Double initialWaterLevelM,
+
+            @Schema(description = "Surface injection pressure [Pa]", example = "100000", defaultValue = "100000")
+            Double surfacePressurePa,
+
+            @Schema(description = "Maximum wellhead back-pressure [Pa]", example = "2000000", defaultValue = "2000000")
+            Double maxWellheadPressurePa,
+
+            @Schema(description = "Minimum wellhead back-pressure [Pa]", example = "1000000", defaultValue = "1000000")
+            Double minWellheadPressurePa
+    ) {
+        public WellParameters {
+            if (tubingLengthM     == null) tubingLengthM     = 4000.0;
+            if (tubingOdMm        == null) tubingOdMm        = 89.0;
+            if (tubingWallMm      == null) tubingWallMm      = 6.5;
+            if (casingOdMm        == null) casingOdMm        = 168.0;
+            if (casingWallMm      == null) casingWallMm      = 10.0;
+            if (fluidDensityKgM3  == null) fluidDensityKgM3  = 1020.0;
+            if (gravityMpS2       == null) gravityMpS2       = 9.81;
+            if (initialWaterLevelM == null) initialWaterLevelM = 0.0;
+            if (surfacePressurePa  == null) surfacePressurePa  = 1e5;
+            if (maxWellheadPressurePa == null) maxWellheadPressurePa = 200e5;
+            if (minWellheadPressurePa == null) minWellheadPressurePa = 100e5;
         }
     }
 

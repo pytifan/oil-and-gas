@@ -1,6 +1,5 @@
 package com.oilgas.calculations.controller;
 
-import com.oilgas.calculations.model.CalculationProgress;
 import com.oilgas.calculations.model.CalculationRequest;
 import com.oilgas.calculations.model.CalculationResponse;
 import com.oilgas.calculations.model.api.CalculationStatusResponse;
@@ -23,8 +22,8 @@ import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
-import reactor.core.publisher.Flux;
 
 import java.net.URI;
 
@@ -90,7 +89,11 @@ public class CalculationsController {
             )
             CalculationRequest request
     ) {
-        log.info("Received calculation request for {} equations", request.equations().size());
+        if (request.wellParams() != null) {
+            log.info("Well completion calculation request — tubing {}m, casing OD {}mm",
+                    request.wellParams().tubingLengthM(),
+                    request.wellParams().casingOdMm());
+        }
 
         if (request.wellConfig() != null) {
             log.info("Well info - Name: {}, Field: {}, Depth: {}m, Fluid: {}",
@@ -156,7 +159,6 @@ public class CalculationsController {
      * Cancel a running calculation.
      *
      * @param calculationId the unique calculation identifier
-     * @return 204 No Content on success
      */
     @DeleteMapping("/{calculationId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
@@ -207,12 +209,25 @@ public class CalculationsController {
                     content = @Content(schema = @Schema(implementation = ProblemDetail.class))
             )
     })
-    public Flux<CalculationProgress> streamProgress(
+    public SseEmitter streamProgress(
             @Parameter(description = "Unique calculation identifier")
             @PathVariable String calculationId
     ) {
         log.debug("SSE subscription request for calculation: {}", calculationId);
-        return calculationService.getProgressStream(calculationId);
+        SseEmitter emitter = new SseEmitter(-1L); // no timeout — stream ends naturally
+        calculationService.getProgressStream(calculationId)
+                .subscribe(
+                        event -> {
+                            try {
+                                emitter.send(SseEmitter.event().data(event, MediaType.APPLICATION_JSON));
+                            } catch (Exception e) {
+                                emitter.completeWithError(e);
+                            }
+                        },
+                        emitter::completeWithError,
+                        emitter::complete
+                );
+        return emitter;
     }
 
     /**

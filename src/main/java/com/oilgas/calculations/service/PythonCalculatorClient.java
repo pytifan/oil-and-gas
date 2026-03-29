@@ -8,7 +8,6 @@ import com.oilgas.calculations.model.CalculationRequest;
 import com.oilgas.calculations.model.CalculationResult;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import io.github.resilience4j.retry.annotation.Retry;
-import io.grpc.StatusRuntimeException;
 import io.grpc.stub.StreamObserver;
 import lombok.extern.slf4j.Slf4j;
 import net.devh.boot.grpc.client.inject.GrpcClient;
@@ -118,12 +117,7 @@ public class PythonCalculatorClient {
     ) {
         var builder = CalculationsProto.CalculationRequest.newBuilder()
                 .setCalculationId(calculationId)
-                .addAllEquations(request.equations())
-                .addAllInitialParameters(request.initialParameters())
                 .setOptions(CalculationsProto.CalculationOptions.newBuilder()
-                        .setSolverMethod(request.options().solverMethod())
-                        .setMaxIterations(request.options().maxIterations())
-                        .setTolerance(request.options().tolerance())
                         .setUnitSystem(request.options().unitSystem())
                         .build());
 
@@ -135,6 +129,23 @@ public class PythonCalculatorClient {
                     .setDepthMeters(wellConfig.depthMeters())
                     .setDiameterInches(wellConfig.diameterInches())
                     .setFluidType(wellConfig.fluidType())
+                    .build());
+        }
+
+        if (request.wellParams() != null) {
+            var wp = request.wellParams();
+            builder.setWellParams(CalculationsProto.WellParameters.newBuilder()
+                    .setTubingLengthM(wp.tubingLengthM())
+                    .setTubingOdMm(wp.tubingOdMm())
+                    .setTubingWallMm(wp.tubingWallMm())
+                    .setCasingOdMm(wp.casingOdMm())
+                    .setCasingWallMm(wp.casingWallMm())
+                    .setFluidDensityKgM3(wp.fluidDensityKgM3())
+                    .setGravityMS2(wp.gravityMpS2())
+                    .setInitialWaterLevelM(wp.initialWaterLevelM())
+                    .setSurfacePressurePa(wp.surfacePressurePa())
+                    .setMaxWellheadPressurePa(wp.maxWellheadPressurePa())
+                    .setMinWellheadPressurePa(wp.minWellheadPressurePa())
                     .build());
         }
 
@@ -156,6 +167,11 @@ public class PythonCalculatorClient {
                         .iteration(p.getIteration())
                         .convergenceMetric(p.getConvergenceMetric())
                         .message(p.getMessage())
+                        .wellheadPressurePa(p.getWellheadPressurePa())
+                        .bottomPressurePa(p.getBottomPressurePa())
+                        .volumePumpedM3(p.getVolumePumpedM3())
+                        .annulusFrontM(p.getAnnulusFrontM())
+                        .tubingFrontM(p.getTubingFrontM())
                         .build();
             }
 

@@ -50,13 +50,29 @@ public sealed interface CalculationProgress {
             String message,
 
             @Schema(description = "Current fluid type being processed")
-            String currentFluidType
+            String currentFluidType,
+
+            // Well completion visualization fields
+            @Schema(description = "Wellhead (tubing top) pressure [Pa]")
+            double wellheadPressurePa,
+
+            @Schema(description = "Bottom-hole pressure [Pa]")
+            double bottomPressurePa,
+
+            @Schema(description = "Total volume pumped so far [m³]")
+            double volumePumpedM3,
+
+            @Schema(description = "Depth of new fluid front in annulus [m]")
+            double annulusFrontM,
+
+            @Schema(description = "Depth of old fluid top in tubing [m]")
+            double tubingFrontM
     ) implements CalculationProgress {
 
         public Progress(String calculationId, int percentage, String phase,
                         int iteration, double convergenceMetric, String message) {
             this(calculationId, "progress", percentage, phase, iteration,
-                    convergenceMetric, message, null);
+                    convergenceMetric, message, null, 0, 0, 0, 0, 0);
         }
     }
 

@@ -7,6 +7,7 @@ import com.oilgas.calculations.model.CalculationProgress;
 import com.oilgas.calculations.model.CalculationRequest;
 import com.oilgas.calculations.model.CalculationState;
 import com.oilgas.calculations.model.api.CalculationStatusResponse;
+import jakarta.annotation.PreDestroy;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
@@ -14,15 +15,9 @@ import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Sinks;
 
-import jakarta.annotation.PreDestroy;
 import java.time.Duration;
-import java.util.Optional;
 import java.util.UUID;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 
 /**
  * Main service for managing calculations.
@@ -158,6 +153,7 @@ public class CalculationService {
         }
 
         return sink.asFlux()
+                .publishOn(reactor.core.scheduler.Schedulers.boundedElastic())
                 .timeout(Duration.ofSeconds(gatewayConfig.getCalculationTimeoutSeconds()))
                 .doOnCancel(() -> log.debug("SSE subscription cancelled for: {}", calculationId))
                 .doOnTerminate(() -> log.debug("SSE stream terminated for: {}", calculationId));
@@ -196,23 +192,6 @@ public class CalculationService {
     }
 
     /**
-     * Check if calculation exists
-     */
-    public boolean calculationExists(String calculationId) {
-        return activeCalculations.containsKey(calculationId);
-    }
-
-    /**
-     * Check if calculation is active (running)
-     */
-    public boolean isCalculationActive(String calculationId) {
-        CalculationStatus status = activeCalculations.get(calculationId);
-        return status != null &&
-                (status.state() == CalculationState.STARTED ||
-                        status.state() == CalculationState.CALCULATING);
-    }
-
-    /**
      * Get count of active calculations
      */
     public int getActiveCalculationCount() {
@@ -220,13 +199,6 @@ public class CalculationService {
                 .filter(s -> s.state() == CalculationState.STARTED ||
                         s.state() == CalculationState.CALCULATING)
                 .count();
-    }
-
-    /**
-     * Get optional status (for internal use)
-     */
-    public Optional<CalculationStatus> getStatus(String calculationId) {
-        return Optional.ofNullable(activeCalculations.get(calculationId));
     }
 
     private void handleProgressUpdate(String calculationId, CalculationProgress progress) {
@@ -256,7 +228,7 @@ public class CalculationService {
     }
 
     private void updateCalculationState(String calculationId, CalculationState state,
-                                         Integer progress, String phase) {
+                                        Integer progress, String phase) {
         activeCalculations.computeIfPresent(calculationId, (id, status) ->
                 new CalculationStatus(id, status.startTime(), state,
                         progress != null ? progress : status.progressPercentage(),
@@ -265,17 +237,17 @@ public class CalculationService {
     }
 
     private void completeSink(String calculationId) {
-        Sinks.Many<CalculationProgress> sink = progressSinks.remove(calculationId);
+        Sinks.Many<CalculationProgress> sink = progressSinks.get(calculationId);
         if (sink != null) {
             sink.tryEmitComplete();
         }
-        // Schedule removal from activeCalculations after a grace period so that
-        // clients that connect shortly after completion can still query status.
+        // Schedule removal after a grace period so late SSE subscribers can still
+        // replay buffered events from the sink.
         scheduleCalculationCleanup(calculationId);
     }
 
     private void completeSinkWithError(String calculationId, Throwable error) {
-        Sinks.Many<CalculationProgress> sink = progressSinks.remove(calculationId);
+        Sinks.Many<CalculationProgress> sink = progressSinks.get(calculationId);
         if (sink != null) {
             sink.tryEmitError(error);
         }
@@ -290,6 +262,7 @@ public class CalculationService {
                 Thread.currentThread().interrupt();
             }
             activeCalculations.remove(calculationId);
+            progressSinks.remove(calculationId);
             log.debug("Cleaned up completed calculation: {}", calculationId);
         });
     }
@@ -321,5 +294,6 @@ public class CalculationService {
             CalculationState state,
             Integer progressPercentage,
             String currentPhase
-    ) {}
+    ) {
+    }
 }
