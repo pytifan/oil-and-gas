@@ -8,10 +8,10 @@
       "port": 8080
     },
     {
-      "name": "All Services (Docker Compose)",
-      "runtimeExecutable": "./mvnw",
-      "runtimeArgs": ["spring-boot:run"],
-      "port": 8080
+      "name": "Frontend (Docker)",
+      "runtimeExecutable": "/Applications/Docker.app/Contents/Resources/bin/docker",
+      "runtimeArgs": ["compose", "-f", "/Users/oleksiiprokopenko/workspace/calculations-gateway/docker-compose.yml", "up", "frontend", "-d"],
+      "port": 3000
     }
   ]
 }
